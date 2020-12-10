@@ -1,0 +1,9 @@
+<library path="rosbag2_storage_leveldb_plugin">
+    <class
+    name="leveldb"
+    type="rosbag2_storage_plugins::LeveldbStorage"
+    base_class_type="rosbag2_storage::storage_interfaces::ReadWriteInterface"
+  >
+    <description>Plugin to support leveldb</description>
+  </class>
+</library>

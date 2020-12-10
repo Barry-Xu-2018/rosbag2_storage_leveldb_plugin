@@ -1,0 +1,13 @@
+diff -Nur a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt	2019-05-04 04:24:26.000000000 +0800
++++ b/CMakeLists.txt	2020-11-18 09:30:19.275999814 +0800
+@@ -94,6 +94,9 @@
+   add_compile_options(-fvisibility=hidden)
+ endif(BUILD_SHARED_LIBS)
+ 
++# Must be included before CMAKE_INSTALL_INCLUDEDIR is used.
++include(GNUInstallDirs)
++
+ add_library(leveldb "")
+ target_sources(leveldb
+   PRIVATE
