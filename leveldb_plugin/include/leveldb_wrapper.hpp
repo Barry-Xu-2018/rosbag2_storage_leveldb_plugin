@@ -47,7 +47,7 @@ class ROSBAG2_STORAGE_PLUGINS_PUBLIC LeveldbWrapper
 {
 public:
   LeveldbWrapper(
-    const std::string relative_path_,
+    const std::string relative_path,
     const std::string topic_name,
     const std::string dir_name,
     bool readwrite);
@@ -82,24 +82,36 @@ public:
 
 private:
   std::string path_metadata_;
-  leveldb::DB * ldb_metadata_;
+  leveldb::DB * ldb_metadata_{nullptr};
+
   std::string path_data_;
-  leveldb::DB * ldb_data_;
-  leveldb::Iterator * read_iter_;  // For message leveldb. Used for read mode.
+  leveldb::DB * ldb_data_{nullptr};
+
+  // For ldb_data_. Only used for read mode.
+  leveldb::Iterator * read_iter_{nullptr};
+
+  // For readwrite mode, specify by caller
+  // For read mode, get from metadata database
   std::string topic_name_;
   std::string topic_type_;
-  bool readwrite_;  // Open mode
-  bool remove_all_ldbs_;
-  uint64_t message_count_;  // Used for readwrite mode
+
+  // Input parameters in construct
+  std::string relative_path_;
+  std::string dir_name_;
+  bool readwrite_{false};
+
+  // Whether delete leveldb while deconstruct
+  bool remove_all_ldbs_{false};
+  uint64_t message_count_{0};  // Used for readwrite mode
 
   enum class message_data_type_e
   {
     BIG_ENDIAN_,
     LITTLE_ENDIAN_
   };
-  message_data_type_e cur_system_data_type_;
-  message_data_type_e message_data_type_;
-  bool enable_endian_convert_;
+  message_data_type_e cur_system_data_type_{message_data_type_e::LITTLE_ENDIAN_};
+  message_data_type_e message_data_type_{message_data_type_e::LITTLE_ENDIAN_};
+  bool enable_endian_convert_{false};
 
   // This class is used for ordering timestamp(key) for message ldb
   class TSComparator : public leveldb::Comparator

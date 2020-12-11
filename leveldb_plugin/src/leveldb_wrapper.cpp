@@ -24,8 +24,6 @@
 #include "rcutils/filesystem.h"
 #include "rosbag2_storage/ros_helper.hpp"
 
-#include "rcutils/logging_macros.h"
-
 #include "leveldb_wrapper.hpp"
 #include "logging.hpp"
 
@@ -37,19 +35,10 @@ LeveldbWrapper::LeveldbWrapper(
   const std::string topic_name,
   const std::string dir_name,
   bool readwrite)
-: path_metadata_(relative_path + "/" + dir_name + LDB_METADATA_POSTFIX),
-  ldb_metadata_(nullptr),
-  path_data_(relative_path + "/" + dir_name + LDB_DATA_POSTFIX),
-  ldb_data_(nullptr),
-  read_iter_(nullptr),
-  topic_name_(topic_name),
-  topic_type_(""),
-  readwrite_(readwrite),
-  remove_all_ldbs_(false),
-  message_count_(0),
-  cur_system_data_type_(message_data_type_e::LITTLE_ENDIAN_),
-  message_data_type_(message_data_type_e::LITTLE_ENDIAN_),
-  enable_endian_convert_(false)
+: topic_name_(topic_name),
+  relative_path_(relative_path),
+  dir_name_(dir_name),
+  readwrite_(readwrite)
 {
   // Check endian type of current system.
   int check_endian = 1;
@@ -89,6 +78,21 @@ void inline LeveldbWrapper::prepare_read()
 
 void LeveldbWrapper::init_ldb()
 {
+  if (relative_path_.empty()) {
+    throw LeveldbException("Input relative path is empty !");
+  }
+
+  if (dir_name_.empty()) {
+    throw LeveldbException("Input directory name is empty !");
+  }
+
+  path_metadata_ = relative_path_ + "/" + dir_name_ + LDB_METADATA_POSTFIX;
+  path_data_ = relative_path_ + "/" + dir_name_ + LDB_DATA_POSTFIX;
+
+  if (readwrite_ && topic_name_.empty()) {
+    throw LeveldbException("Input topic name is empty !");
+  }
+
   // Open metadata leveldb
   open_leveldb(path_metadata_, &ldb_metadata_, readwrite_);
 
@@ -164,7 +168,10 @@ void LeveldbWrapper::msg_write(
             "Failed to write (" +
             key.ToString() + ":" + val.ToString() + ") leveldb :" + status.ToString());
   }
-  message_count_++;
+
+  if (ldb == ldb_data_) {
+    message_count_++;
+  }
 }
 
 void LeveldbWrapper::msg_write(
@@ -181,7 +188,10 @@ void LeveldbWrapper::msg_write(
   if (!status.ok()) {
     throw LeveldbException("Failed to batch write :" + status.ToString());
   }
-  message_count_ += count;
+
+  if (ldb == ldb_data_) {
+    message_count_ += count;
+  }
 }
 
 void LeveldbWrapper::write_metadata(const rosbag2_storage::TopicMetadata & topic_metadata)
