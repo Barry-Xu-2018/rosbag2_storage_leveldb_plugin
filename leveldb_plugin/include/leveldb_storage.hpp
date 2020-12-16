@@ -88,7 +88,7 @@ private:
   std::string relative_path_;
   rosbag2_storage::StorageFilter storage_filter_{};
   bool scan_ldb_done_{false};
-  inline void scan_ldb_for_read();
+  leveldb_open_options_t leveldb_open_options_;
 
   struct ts_compare
   {
@@ -103,10 +103,13 @@ private:
     rcutils_time_point_value_t,
     std::shared_ptr<rosbag2_storage::SerializedBagMessage>,
     ts_compare> read_cache_{};
-  bool init_read_cache_done_{false};
-  inline void init_read_cache();
 
+  bool init_read_cache_done_{false};
+
+  inline void scan_ldb_for_read();
+  inline void init_read_cache();
   void fill_topics_and_types();
+  void parse_yaml_config_file(std::string uri);
 };
 
 }  // namespace rosbag2_storage_plugins

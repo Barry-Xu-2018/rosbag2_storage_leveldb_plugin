@@ -34,11 +34,13 @@ LeveldbWrapper::LeveldbWrapper(
   const std::string relative_path,
   const std::string topic_name,
   const std::string dir_name,
-  bool readwrite)
+  bool readwrite,
+  leveldb_open_options_t open_options)
 : topic_name_(topic_name),
   relative_path_(relative_path),
   dir_name_(dir_name),
-  readwrite_(readwrite)
+  readwrite_(readwrite),
+  leveldb_open_options_(open_options)
 {
   // Check endian type of current system.
   int check_endian = 1;
@@ -130,6 +132,22 @@ void LeveldbWrapper::open_leveldb(const std::string & path, leveldb::DB ** ldb, 
   leveldb::Options options;
   if (readwrite) {
     options.create_if_missing = true;
+  }
+
+  if (leveldb_open_options_.block_size != 0) {
+    options.block_size = leveldb_open_options_.block_size;
+  }
+
+  if (leveldb_open_options_.max_file_size != 0) {
+    options.max_file_size = leveldb_open_options_.max_file_size;
+  }
+
+  if (leveldb_open_options_.max_open_files != 0) {
+    options.max_open_files = static_cast<int>(leveldb_open_options_.max_open_files);
+  }
+
+  if (leveldb_open_options_.write_buffer_size != 0) {
+    options.write_buffer_size = leveldb_open_options_.write_buffer_size;
   }
 
   // Disable compression function in leveldb

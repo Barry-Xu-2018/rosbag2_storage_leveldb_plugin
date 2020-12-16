@@ -145,7 +145,7 @@ public:
   {
     auto temp_dir = rcpputils::fs::path(temporary_dir_path_);
     const auto storage_uri = (temp_dir / "rosbag").string();
-    const auto yaml_config = (temp_dir / "sqlite_config.yaml").string();
+    const auto yaml_config = (temp_dir / "leveldb_config.yaml").string();
 
     { // populate temporary config file
       std::ofstream out(yaml_config);

@@ -24,11 +24,24 @@
 
 #include "rcpputils/filesystem_helper.hpp"
 
+#include "rcutils/filesystem.h"
+
 #include "rosbag2_storage/metadata_io.hpp"
 #include "rosbag2_storage/serialized_bag_message.hpp"
 
 #include "leveldb_exception.hpp"
 #include "leveldb_storage.hpp"
+
+#ifdef _WIN32
+// This is necessary because of a bug in yaml-cpp's cmake
+#define YAML_CPP_DLL
+// This is necessary because yaml-cpp does not always use dllimport/dllexport consistently
+# pragma warning(push)
+# pragma warning(disable:4251)
+# pragma warning(disable:4275)
+#endif
+#include "yaml-cpp/yaml.h"
+
 #include "logging.hpp"
 
 namespace
@@ -55,11 +68,62 @@ LeveldbStorage::~LeveldbStorage()
 {
 }
 
+void LeveldbStorage::parse_yaml_config_file(std::string uri)
+{
+  if (!rcutils_is_file(uri.c_str())) {
+    throw std::runtime_error(
+            "Not find storage config file : " + uri);
+  }
+
+  ROSBAG2_STORAGE_LEVELDB_PLUGINS_LOG_INFO_STREAM(
+    "Parsing yaml file " + uri);
+
+  try {
+    YAML::Node yaml_file = YAML::LoadFile(uri);
+
+    if (yaml_file["open_options"]["write_buffer_size"].IsDefined()) {
+      leveldb_open_options_.write_buffer_size =
+        yaml_file["open_options"]["write_buffer_size"].as<size_t>();
+      ROSBAG2_STORAGE_LEVELDB_PLUGINS_LOG_INFO_STREAM(
+        "write_buffer_size : " + std::to_string(leveldb_open_options_.write_buffer_size));
+    }
+
+    if (yaml_file["open_options"]["max_open_files"].IsDefined()) {
+      leveldb_open_options_.max_open_files =
+        yaml_file["open_options"]["max_open_files"].as<size_t>();
+      ROSBAG2_STORAGE_LEVELDB_PLUGINS_LOG_INFO_STREAM(
+        "   max_open_files : " + std::to_string(leveldb_open_options_.max_open_files));
+    }
+
+    if (yaml_file["open_options"]["block_size"].IsDefined()) {
+      leveldb_open_options_.block_size =
+        yaml_file["open_options"]["block_size"].as<size_t>();
+      ROSBAG2_STORAGE_LEVELDB_PLUGINS_LOG_INFO_STREAM(
+        "       block_size : " + std::to_string(leveldb_open_options_.block_size));
+    }
+
+    if (yaml_file["open_options"]["max_file_size"].IsDefined()) {
+      leveldb_open_options_.max_file_size =
+        yaml_file["open_options"]["max_file_size"].as<size_t>();
+      ROSBAG2_STORAGE_LEVELDB_PLUGINS_LOG_INFO_STREAM(
+        "    max_file_size : " + std::to_string(leveldb_open_options_.max_file_size));
+    }
+  } catch (const YAML::Exception & ex) {
+    throw std::runtime_error(
+            std::string("Exception on parsing leveldb config file: ") +
+            ex.what());
+  }
+}
+
 void LeveldbStorage::open(
   const rosbag2_storage::StorageOptions & storage_options,
   rosbag2_storage::storage_interfaces::IOFlag io_flag)
 {
   relative_path_ = storage_options.uri;
+
+  if (!storage_options.storage_config_uri.empty()) {
+    parse_yaml_config_file(storage_options.storage_config_uri);
+  }
 
   rcpputils::fs::path path(relative_path_);
 
@@ -134,7 +198,8 @@ inline void LeveldbStorage::scan_ldb_for_read()
           std::string base_dir_name =
             dir_name.substr(0, dir_name.length() - strlen(LDB_METADATA_POSTFIX));
           std::shared_ptr<class LeveldbWrapper> ldb_wrapper =
-            std::make_shared<class LeveldbWrapper>(relative_path_, "", base_dir_name, false);
+            std::make_shared<class LeveldbWrapper>(
+            relative_path_, "", base_dir_name, false, leveldb_open_options_);
           ldb_wrapper->init_ldb();
           topic_ldb_map_.emplace(std::make_pair(ldb_wrapper->get_topic_name(), ldb_wrapper));
         }
@@ -162,7 +227,8 @@ inline void LeveldbStorage::scan_ldb_for_read()
           std::string base_dir_name =
             dir_name.substr(0, dir_name.length() - strlen(LDB_METADATA_POSTFIX));
           std::shared_ptr<class LeveldbWrapper> ldb_wrapper =
-            std::make_shared<class LeveldbWrapper>(relative_path_, "", base_dir_name, false);
+            std::make_shared<class LeveldbWrapper>(
+            relative_path_, "", base_dir_name, false, leveldb_open_options_);
           ldb_wrapper->init_ldb();
           topic_ldb_map_.emplace(std::make_pair(ldb_wrapper->get_topic_name(), ldb_wrapper));
         }
@@ -247,7 +313,8 @@ void LeveldbStorage::create_topic(const rosbag2_storage::TopicMetadata & topic)
     std::string dir_name = topic.name;
     std::replace(dir_name.begin(), dir_name.end(), '/', '_');
     std::shared_ptr<class LeveldbWrapper> ldb_wrapper =
-      std::make_shared<class LeveldbWrapper>(relative_path_, topic.name, dir_name, true);
+      std::make_shared<class LeveldbWrapper>(
+      relative_path_, topic.name, dir_name, true, leveldb_open_options_);
 
     ldb_wrapper->init_ldb();
     ldb_wrapper->write_metadata(topic);

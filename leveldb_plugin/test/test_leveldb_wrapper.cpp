@@ -38,12 +38,13 @@ public:
     test_dir_ = (rcpputils::fs::path(temporary_dir_path_) / "ldb").string();
   }
   std::string test_dir_;
+  rosbag2_storage_plugins::leveldb_open_options_t open_options_;
 };
 
 TEST_F(LeveldbWrapperTestFixture, test_construct_parameters) {
   // related path must be specifed for write mode
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb("", "/topic", "_topic", true);
+    rosbag2_storage_plugins::LeveldbWrapper ldb("", "/topic", "_topic", true, open_options_);
     EXPECT_THROW(
       ldb.init_ldb(),
       rosbag2_storage_plugins::LeveldbException
@@ -52,7 +53,7 @@ TEST_F(LeveldbWrapperTestFixture, test_construct_parameters) {
 
   // related path must be specifed for read mode
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb("", "/topic", "_topic", false);
+    rosbag2_storage_plugins::LeveldbWrapper ldb("", "/topic", "_topic", false, open_options_);
     EXPECT_THROW(
       ldb.init_ldb(),
       rosbag2_storage_plugins::LeveldbException
@@ -61,7 +62,7 @@ TEST_F(LeveldbWrapperTestFixture, test_construct_parameters) {
 
   // directory name must be specifed for write mode
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb(test_dir_, "/topic", "", true);
+    rosbag2_storage_plugins::LeveldbWrapper ldb(test_dir_, "/topic", "", true, open_options_);
     EXPECT_THROW(
       ldb.init_ldb(),
       rosbag2_storage_plugins::LeveldbException
@@ -70,7 +71,7 @@ TEST_F(LeveldbWrapperTestFixture, test_construct_parameters) {
 
   // directory name must be specifed for read mode
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb(test_dir_, "/topic", "", false);
+    rosbag2_storage_plugins::LeveldbWrapper ldb(test_dir_, "/topic", "", false, open_options_);
     EXPECT_THROW(
       ldb.init_ldb(),
       rosbag2_storage_plugins::LeveldbException
@@ -79,7 +80,7 @@ TEST_F(LeveldbWrapperTestFixture, test_construct_parameters) {
 
   // topic name must be specifed for write mode
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb(test_dir_, "", "_topic", true);
+    rosbag2_storage_plugins::LeveldbWrapper ldb(test_dir_, "", "_topic", true, open_options_);
     EXPECT_THROW(
       ldb.init_ldb(),
       rosbag2_storage_plugins::LeveldbException
@@ -89,12 +90,13 @@ TEST_F(LeveldbWrapperTestFixture, test_construct_parameters) {
   // topic name should be ignored for read mode
   {
     rosbag2_storage::TopicMetadata in = {"/topic", "string", "cdr", "abcd"};
-    rosbag2_storage_plugins::LeveldbWrapper ldb_w(test_dir_, "/topic", "_topic", true);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_w(
+      test_dir_, "/topic", "_topic", true, open_options_);
     ASSERT_NO_THROW(ldb_w.init_ldb());
     ASSERT_NO_THROW(ldb_w.write_metadata(in));
   }
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb(test_dir_, "", "_topic", false);
+    rosbag2_storage_plugins::LeveldbWrapper ldb(test_dir_, "", "_topic", false, open_options_);
     EXPECT_NO_THROW(
       ldb.init_ldb()
     );
@@ -106,7 +108,8 @@ TEST_F(LeveldbWrapperTestFixture, check_write_and_read_metadata) {
 
   // Write metadata
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb_w(test_dir_, "/topic1", "_topic1", true);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_w(
+      test_dir_, "/topic1", "_topic1", true, open_options_);
 
     ASSERT_NO_THROW(ldb_w.init_ldb());
 
@@ -116,7 +119,7 @@ TEST_F(LeveldbWrapperTestFixture, check_write_and_read_metadata) {
   // Read metadata
   std::shared_ptr<rosbag2_storage::TopicMetadata> out;
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic1", false);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic1", false, open_options_);
 
     ASSERT_NO_THROW(ldb_r.init_ldb());
 
@@ -129,7 +132,8 @@ TEST_F(LeveldbWrapperTestFixture, check_write_and_read_metadata) {
 TEST_F(LeveldbWrapperTestFixture, check_get_topic_name) {
   // Open with write mode
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb_w(test_dir_, "/topic2", "_topic2", true);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_w(
+      test_dir_, "/topic2", "_topic2", true, open_options_);
     ASSERT_NO_THROW(ldb_w.init_ldb());
     EXPECT_EQ("/topic2", ldb_w.get_topic_name());
     rosbag2_storage::TopicMetadata in = {"/topic2", "string", "cdr", "abcd"};
@@ -138,7 +142,7 @@ TEST_F(LeveldbWrapperTestFixture, check_get_topic_name) {
 
   // open with read mode
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic2", false);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic2", false, open_options_);
     ASSERT_NO_THROW(ldb_r.init_ldb());
     EXPECT_EQ("/topic2", ldb_r.get_topic_name());
   }
@@ -193,7 +197,8 @@ TEST_F(LeveldbWrapperTestFixture, check_get_topic_ldb_size) {
   rcutils_allocator_t allocator = rcutils_get_default_allocator();
   {
     // Prepare metadata and message
-    rosbag2_storage_plugins::LeveldbWrapper ldb_w(test_dir_, "/topic3", "_topic3", true);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_w(
+      test_dir_, "/topic3", "_topic3", true, open_options_);
     ASSERT_NO_THROW(ldb_w.init_ldb());
     rosbag2_storage::TopicMetadata in = {"/topic3", "string", "cdr", "abcdefg"};
     ASSERT_NO_THROW(ldb_w.write_metadata(in));
@@ -221,7 +226,7 @@ TEST_F(LeveldbWrapperTestFixture, check_get_topic_ldb_size) {
 
   {
     // Re-open with read mode to check
-    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic3", false);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic3", false, open_options_);
     ASSERT_NO_THROW(ldb_r.init_ldb());
 
     ASSERT_EQ(
@@ -243,7 +248,8 @@ TEST_F(LeveldbWrapperTestFixture, check_read_write_message) {
 
   {
     // Prepare metadata and message
-    rosbag2_storage_plugins::LeveldbWrapper ldb_w(test_dir_, "/topic4", "_topic4", true);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_w(
+      test_dir_, "/topic4", "_topic4", true, open_options_);
     ASSERT_NO_THROW(ldb_w.init_ldb());
     rosbag2_storage::TopicMetadata in = {"/topic4", "string", "cdr", "abcdefg"};
     ASSERT_NO_THROW(ldb_w.write_metadata(in));
@@ -252,7 +258,7 @@ TEST_F(LeveldbWrapperTestFixture, check_read_write_message) {
   }
 
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic4", false);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic4", false, open_options_);
     ASSERT_NO_THROW(ldb_r.init_ldb());
 
     std::shared_ptr<rosbag2_storage::SerializedBagMessage> read_msg1, read_msg2;
@@ -283,7 +289,8 @@ TEST_F(LeveldbWrapperTestFixture, check_read_message_by_timestamp_sequence) {
 
   {
     // Prepare metadata and message
-    rosbag2_storage_plugins::LeveldbWrapper ldb_w(test_dir_, "/topic5", "_topic5", true);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_w(
+      test_dir_, "/topic5", "_topic5", true, open_options_);
     ASSERT_NO_THROW(ldb_w.init_ldb());
     rosbag2_storage::TopicMetadata in = {"/topic5", "string", "cdr", "abcdefg"};
     ASSERT_NO_THROW(ldb_w.write_metadata(in));
@@ -294,7 +301,7 @@ TEST_F(LeveldbWrapperTestFixture, check_read_message_by_timestamp_sequence) {
   }
 
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic5", false);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic5", false, open_options_);
     ASSERT_NO_THROW(ldb_r.init_ldb());
 
     std::shared_ptr<rosbag2_storage::SerializedBagMessage> read_msg1, read_msg2, read_msg3;
@@ -318,7 +325,8 @@ TEST_F(LeveldbWrapperTestFixture, check_has_next) {
 
   {
     // Prepare metadata and message
-    rosbag2_storage_plugins::LeveldbWrapper ldb_w(test_dir_, "/topic6", "_topic6", true);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_w(
+      test_dir_, "/topic6", "_topic6", true, open_options_);
     ASSERT_NO_THROW(ldb_w.init_ldb());
     rosbag2_storage::TopicMetadata in = {"/topic6", "string", "cdr", "abcdefg"};
     ASSERT_NO_THROW(ldb_w.write_metadata(in));
@@ -327,7 +335,7 @@ TEST_F(LeveldbWrapperTestFixture, check_has_next) {
   }
 
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic6", false);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic6", false, open_options_);
     ASSERT_NO_THROW(ldb_r.init_ldb());
 
     std::shared_ptr<rosbag2_storage::SerializedBagMessage> read_msg1;
@@ -343,7 +351,8 @@ TEST_F(LeveldbWrapperTestFixture, check_remove_database) {
 
   {
     // Prepare metadata and message
-    rosbag2_storage_plugins::LeveldbWrapper ldb_w(test_dir_, "/topic7", "_topic7", true);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_w(
+      test_dir_, "/topic7", "_topic7", true, open_options_);
     ASSERT_NO_THROW(ldb_w.init_ldb());
 
     rosbag2_storage::TopicMetadata in = {"/topic7", "string", "cdr", "abcdefg"};
@@ -377,7 +386,8 @@ TEST_F(LeveldbWrapperTestFixture, check_get_message_count) {
 
   {
     // Prepare metadata and message
-    rosbag2_storage_plugins::LeveldbWrapper ldb_w(test_dir_, "/topic7", "_topic7", true);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_w(
+      test_dir_, "/topic7", "_topic7", true, open_options_);
     ASSERT_NO_THROW(ldb_w.init_ldb());
     rosbag2_storage::TopicMetadata in = {"/topic7", "string", "cdr", "abcdefg"};
     ASSERT_NO_THROW(ldb_w.write_metadata(in));
@@ -390,7 +400,7 @@ TEST_F(LeveldbWrapperTestFixture, check_get_message_count) {
   }
 
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic7", false);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic7", false, open_options_);
     ASSERT_NO_THROW(ldb_r.init_ldb());
 
     EXPECT_EQ(ldb_r.get_message_count(), static_cast<size_t>(3));
@@ -412,7 +422,8 @@ TEST_F(LeveldbWrapperTestFixture, check_get_min_max_timestamp) {
 
   {
     // Prepare metadata and message
-    rosbag2_storage_plugins::LeveldbWrapper ldb_w(test_dir_, "/topic8", "_topic8", true);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_w(
+      test_dir_, "/topic8", "_topic8", true, open_options_);
     ASSERT_NO_THROW(ldb_w.init_ldb());
     rosbag2_storage::TopicMetadata in = {"/topic8", "string", "cdr", "abcdefg"};
     ASSERT_NO_THROW(ldb_w.write_metadata(in));
@@ -424,7 +435,7 @@ TEST_F(LeveldbWrapperTestFixture, check_get_min_max_timestamp) {
   }
 
   {
-    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic8", false);
+    rosbag2_storage_plugins::LeveldbWrapper ldb_r(test_dir_, "", "_topic8", false, open_options_);
     ASSERT_NO_THROW(ldb_r.init_ldb());
 
     EXPECT_EQ(ldb_r.get_min_timestamp(), 1);

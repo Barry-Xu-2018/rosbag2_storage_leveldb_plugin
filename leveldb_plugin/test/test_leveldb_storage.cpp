@@ -317,21 +317,21 @@ TEST_F(LeveldbPluginTestFixture, get_relative_file_path_returns_db_name_with_ext
   EXPECT_EQ(append_storage->get_relative_file_path(), storage_path);
 }
 
-#if 0
 TEST_F(LeveldbPluginTestFixture, loads_config_file) {
   // Check that storage opens with correct sqlite config file
-  const auto valid_yaml = "write:\n  pragmas: [\"journal_mode = MEMORY\"]\n";
-  const auto writable_storage = std::make_unique<rosbag2_storage_plugins::SqliteStorage>();
+  const auto valid_yaml = "open_options:\n    write_buffer_size: 4194304\n"
+    "    max_open_files: 1200\n    block_size: 4096\n    max_file_size: 2097152\n";
+  const auto writable_storage = std::make_unique<rosbag2_storage_plugins::LeveldbStorage>();
   EXPECT_NO_THROW(
     writable_storage->open(
       make_storage_options_with_config(valid_yaml, plugin_id),
       rosbag2_storage::storage_interfaces::IOFlag::READ_WRITE));
 }
 
-TEST_F(LeveldbPluginTestFixture, throws_on_invalid_pragma_in_config_file) {
+TEST_F(LeveldbPluginTestFixture, throws_on_invalid_yaml_format_in_config_file) {
   // Check that storage throws on invalid pragma statement in sqlite config
-  const auto invalid_yaml = "write:\n  pragmas: [\"unrecognized_pragma_name = 2\"]\n";
-  const auto writable_storage = std::make_unique<rosbag2_storage_plugins::SqliteStorage>();
+  const auto invalid_yaml = "readoptins = error";
+  const auto writable_storage = std::make_unique<rosbag2_storage_plugins::LeveldbStorage>();
 
   EXPECT_THROW(
     writable_storage->open(
@@ -339,4 +339,3 @@ TEST_F(LeveldbPluginTestFixture, throws_on_invalid_pragma_in_config_file) {
       rosbag2_storage::storage_interfaces::IOFlag::READ_WRITE),
     std::runtime_error);
 }
-#endif

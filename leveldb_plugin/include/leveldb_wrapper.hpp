@@ -43,6 +43,32 @@ namespace rosbag2_storage_plugins
   | (((x) & 0x000000000000ff00ull) << 40) \
   | (((x) & 0x00000000000000ffull) << 56))
 
+// Yaml file format for storage config file
+// e.g.
+// open_options:
+//   write_buffer_size: 4194304
+//   max_open_files: 1000
+//   block_size: 4096
+//   max_file_size: 2097152
+typedef struct leveldb_open_options
+{
+  // Amount of data to build up in memory (backed by an unsorted log
+  // on disk) before converting to a sorted on-disk file.
+  size_t write_buffer_size = 0;
+
+  // Number of open files that can be used by the DB.
+  size_t max_open_files = 0;
+
+  // Approximate size of user data packed per block.
+  // For the detail, please refer to leveldb/options.h
+  size_t block_size = 0;
+
+  // Leveldb will write up to this amount of bytes to a file before
+  // switching to a new one.
+
+  size_t max_file_size = 0;
+} leveldb_open_options_t;
+
 class ROSBAG2_STORAGE_PLUGINS_PUBLIC LeveldbWrapper
 {
 public:
@@ -50,7 +76,8 @@ public:
     const std::string relative_path,
     const std::string topic_name,
     const std::string dir_name,
-    bool readwrite);
+    bool readwrite,
+    leveldb_open_options_t open_options);
 
   ~LeveldbWrapper();
 
@@ -99,6 +126,7 @@ private:
   std::string relative_path_;
   std::string dir_name_;
   bool readwrite_{false};
+  leveldb_open_options_t leveldb_open_options_;
 
   // Whether delete leveldb while deconstruct
   bool remove_all_ldbs_{false};
