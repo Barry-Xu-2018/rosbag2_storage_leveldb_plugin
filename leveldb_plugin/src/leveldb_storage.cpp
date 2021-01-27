@@ -22,6 +22,16 @@
 #include <utility>
 #include <vector>
 
+#ifndef _WIN32
+#include <dirent.h>
+#else
+#pragma warning(push)
+#pragma warning(disable : 5105)
+#include <windows.h>
+#pragma warning(pop)
+#include <direct.h>
+#endif
+
 #include "rcpputils/filesystem_helper.hpp"
 
 #include "rcutils/filesystem.h"
