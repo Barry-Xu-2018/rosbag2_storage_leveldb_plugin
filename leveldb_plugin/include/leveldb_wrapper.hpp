@@ -179,7 +179,7 @@ private:
   };
   TSComparator timestamp_comparator_;
 
-  void open_leveldb(const std::string & path, leveldb::DB ** ldb, bool readwrite);
+  void open_leveldb(const std::string & path, leveldb::DB ** ldb, bool readwrite, bool use_options);
   void msg_write(leveldb::DB * ldb, const leveldb::Slice & key, const leveldb::Slice & val);
   void msg_write(leveldb::DB * ldb, std::vector<std::pair<leveldb::Slice, leveldb::Slice>> & data);
   inline void read_metadata(const leveldb::Slice & key, std::string & val);

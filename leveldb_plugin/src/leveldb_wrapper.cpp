@@ -96,7 +96,7 @@ void LeveldbWrapper::init_ldb()
   }
 
   // Open metadata leveldb
-  open_leveldb(path_metadata_, &ldb_metadata_, readwrite_);
+  open_leveldb(path_metadata_, &ldb_metadata_, readwrite_, false);
 
   // If readonly mode
   if (!readwrite_) {
@@ -120,34 +120,40 @@ void LeveldbWrapper::init_ldb()
   }
 
   // Open message leveldb
-  open_leveldb(path_data_, &ldb_data_, readwrite_);
+  open_leveldb(path_data_, &ldb_data_, readwrite_, true);
 
   if (!readwrite_) {
     prepare_read();
   }
 }
 
-void LeveldbWrapper::open_leveldb(const std::string & path, leveldb::DB ** ldb, bool readwrite)
+void LeveldbWrapper::open_leveldb(
+  const std::string & path,
+  leveldb::DB ** ldb,
+  bool readwrite,
+  bool use_options)
 {
   leveldb::Options options;
   if (readwrite) {
     options.create_if_missing = true;
   }
 
-  if (leveldb_open_options_.block_size != 0) {
-    options.block_size = leveldb_open_options_.block_size;
-  }
+  if (use_options) {
+    if (leveldb_open_options_.block_size != 0) {
+      options.block_size = leveldb_open_options_.block_size;
+    }
 
-  if (leveldb_open_options_.max_file_size != 0) {
-    options.max_file_size = leveldb_open_options_.max_file_size;
-  }
+    if (leveldb_open_options_.max_file_size != 0) {
+      options.max_file_size = leveldb_open_options_.max_file_size;
+    }
 
-  if (leveldb_open_options_.max_open_files != 0) {
-    options.max_open_files = static_cast<int>(leveldb_open_options_.max_open_files);
-  }
+    if (leveldb_open_options_.max_open_files != 0) {
+      options.max_open_files = static_cast<int>(leveldb_open_options_.max_open_files);
+    }
 
-  if (leveldb_open_options_.write_buffer_size != 0) {
-    options.write_buffer_size = leveldb_open_options_.write_buffer_size;
+    if (leveldb_open_options_.write_buffer_size != 0) {
+      options.write_buffer_size = leveldb_open_options_.write_buffer_size;
+    }
   }
 
   // Disable compression function in leveldb
