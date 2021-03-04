@@ -290,7 +290,7 @@ TEST_F(LeveldbPluginTestFixture, get_storage_identifier_returns_leveldb) {
 }
 
 TEST_F(LeveldbPluginTestFixture, get_relative_file_path_returns_db_name_with_ext) {
-  // check that storage::get_relative_file_path returns the relative path to the sqlite3 db
+  // check that storage::get_relative_file_path returns the relative path to the leveldb db
   // and that uri is handled properly when storage::open is called with different io_flags
   // READ_WRITE expects uri to not end in extension
   const auto read_write_filename = (rcpputils::fs::path(temporary_dir_path_) / "rosbag").string();
@@ -318,7 +318,7 @@ TEST_F(LeveldbPluginTestFixture, get_relative_file_path_returns_db_name_with_ext
 }
 
 TEST_F(LeveldbPluginTestFixture, loads_config_file) {
-  // Check that storage opens with correct sqlite config file
+  // Check that storage opens with correct leveldb config file
   const auto valid_yaml = "open_options:\n    write_buffer_size: 4194304\n"
     "    max_open_files: 1200\n    block_size: 4096\n    max_file_size: 2097152\n";
   const auto writable_storage = std::make_unique<rosbag2_storage_plugins::LeveldbStorage>();
@@ -329,7 +329,7 @@ TEST_F(LeveldbPluginTestFixture, loads_config_file) {
 }
 
 TEST_F(LeveldbPluginTestFixture, throws_on_invalid_yaml_format_in_config_file) {
-  // Check that storage throws on invalid pragma statement in sqlite config
+  // Check that storage throws on invalid pragma statement in leveldb config
   const auto invalid_yaml = "readoptins = error";
   const auto writable_storage = std::make_unique<rosbag2_storage_plugins::LeveldbStorage>();
 

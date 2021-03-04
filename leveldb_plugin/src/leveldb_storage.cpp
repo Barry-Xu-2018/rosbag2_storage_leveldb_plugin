@@ -91,6 +91,11 @@ void LeveldbStorage::parse_yaml_config_file(std::string uri)
   try {
     YAML::Node yaml_file = YAML::LoadFile(uri);
 
+    if (!yaml_file["open_options"].IsDefined()) {
+      throw std::runtime_error(
+              std::string("Not find \"open_options\" in leveldb config file: " + uri));
+    }
+
     if (yaml_file["open_options"]["write_buffer_size"].IsDefined()) {
       leveldb_open_options_.write_buffer_size =
         yaml_file["open_options"]["write_buffer_size"].as<size_t>();
@@ -187,7 +192,7 @@ void LeveldbStorage::write(
   }
 
   // Send msgs
-  for (auto & msg_queue: topic_msg_queue_) {
+  for (auto & msg_queue : topic_msg_queue_) {
     std::cout << msg_queue.first << ":" << msg_queue.second.size() << std::endl;
     topic_ldb_map_[msg_queue.first]->write_message(msg_queue.second);
     msg_queue.second.clear();
