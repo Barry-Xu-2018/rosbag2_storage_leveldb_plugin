@@ -175,9 +175,23 @@ void LeveldbStorage::write(std::shared_ptr<const rosbag2_storage::SerializedBagM
 void LeveldbStorage::write(
   const std::vector<std::shared_ptr<const rosbag2_storage::SerializedBagMessage>> & messages)
 {
+  // Find all msgs for each topic
   for (auto msg : messages) {
-    // Since message may be from different topic, have to do one by one.
-    write(msg);
+    if (topic_ldb_map_.find(msg->topic_name) == topic_ldb_map_.end()) {
+      throw LeveldbException(
+              "Topic '" + msg->topic_name +
+              "' has not been created yet! Call 'create_topic' first.");
+    }
+
+    topic_msg_queue_[msg->topic_name].emplace_back(msg);
+  }
+
+  // Send msgs
+  for (auto & msg_queue: topic_msg_queue_) {
+    std::cout << msg_queue.first << ":" << msg_queue.second.size() << std::endl;
+    topic_ldb_map_[msg_queue.first]->write_message(msg_queue.second);
+    msg_queue.second.clear();
+    std::cout << msg_queue.first << ":" << topic_msg_queue_[msg_queue.first].size() << std::endl;
   }
 }
 
@@ -330,6 +344,10 @@ void LeveldbStorage::create_topic(const rosbag2_storage::TopicMetadata & topic)
     ldb_wrapper->write_metadata(topic);
 
     topic_ldb_map_.emplace(std::make_pair(topic.name, std::move(ldb_wrapper)));
+    topic_msg_queue_.emplace(
+      std::make_pair(
+        topic.name,
+        std::vector<std::shared_ptr<const rosbag2_storage::SerializedBagMessage>>()));
   }
 }
 
@@ -338,6 +356,7 @@ void LeveldbStorage::remove_topic(const rosbag2_storage::TopicMetadata & topic)
   if (topic_ldb_map_.find(topic.name) != topic_ldb_map_.end()) {
     topic_ldb_map_[topic.name]->remove_database();
     topic_ldb_map_.erase(topic.name);
+    topic_msg_queue_.erase(topic.name);
   }
 }
 

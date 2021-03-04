@@ -84,6 +84,8 @@ public:
 
 private:
   std::map<std::string, std::shared_ptr<class LeveldbWrapper>> topic_ldb_map_{};
+  std::map<std::string, std::vector<std::shared_ptr<const rosbag2_storage::SerializedBagMessage>>>
+  topic_msg_queue_{}; // For write batch mode
   std::vector<rosbag2_storage::TopicMetadata> all_topics_and_types_{};
   std::string relative_path_;
   rosbag2_storage::StorageFilter storage_filter_{};
