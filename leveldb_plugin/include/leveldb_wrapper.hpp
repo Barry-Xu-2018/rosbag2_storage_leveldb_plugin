@@ -24,6 +24,11 @@
 #include <vector>
 #include <utility>
 #include <memory>
+#include <condition_variable>
+#include <thread>
+#include <atomic>
+#include <queue>
+#include <mutex>
 
 #include "rosbag2_storage/metadata_io.hpp"
 #include "rosbag2_storage/serialized_bag_message.hpp"
@@ -72,6 +77,7 @@ typedef struct leveldb_open_options
 class ROSBAG2_STORAGE_PLUGINS_PUBLIC LeveldbWrapper
 {
 public:
+  using vector_msgs_t = std::vector<std::shared_ptr<const rosbag2_storage::SerializedBagMessage>>;
   LeveldbWrapper(
     const std::string relative_path,
     const std::string topic_name,
@@ -89,8 +95,7 @@ public:
 
   void write_message(const std::shared_ptr<const rosbag2_storage::SerializedBagMessage> & message);
 
-  void write_message(
-    const std::vector<std::shared_ptr<const rosbag2_storage::SerializedBagMessage>> & messages);
+  void write_message(const std::shared_ptr<vector_msgs_t> & messages);
 
   std::shared_ptr<rosbag2_storage::SerializedBagMessage> read_next();
 
@@ -131,6 +136,22 @@ private:
   // Whether delete leveldb while deconstruct
   bool remove_all_ldbs_{false};
   uint64_t message_count_{0};  // Used for readwrite mode
+
+  // For write thread
+  const uint32_t maximum_queue_size_ = 1;
+  std::queue<std::shared_ptr<vector_msgs_t>> write_msgs_queue_;
+  std::mutex m_write_msgs_queue_;
+
+  bool write_msgs_flag_{false};
+  std::mutex m_write_msgs_flag_;
+  std::condition_variable cv_write_msgs_flag_;
+
+  bool request_msgs_flag_{true};
+  std::mutex m_request_msgs_flag_;
+  std::condition_variable cv_request_msgs_flag_;
+
+  std::atomic_bool write_thread_exit_flag_{false};  // Notify writebatch thread exiting
+  std::thread write_thread_;
 
   enum class message_data_type_e
   {
@@ -186,6 +207,7 @@ private:
   void read_message(leveldb::Slice & key, leveldb::Slice & val);
   rcutils_time_point_value_t get_timestamp(std::shared_ptr<leveldb::Iterator> & iter);
   inline void prepare_read();
+  void write_thread();
 };
 
 // The direcotry {TOPIC_NAME}_metadata for metadata leveldb

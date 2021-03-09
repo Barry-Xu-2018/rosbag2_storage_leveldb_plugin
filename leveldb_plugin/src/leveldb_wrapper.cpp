@@ -19,6 +19,7 @@
 #include <utility>
 #include <memory>
 #include <vector>
+#include <queue>
 
 #include "rcpputils/filesystem_helper.hpp"
 #include "rcutils/filesystem.h"
@@ -47,10 +48,27 @@ LeveldbWrapper::LeveldbWrapper(
   if (*(reinterpret_cast<char *>(&check_endian)) != 1) {
     cur_system_data_type_ = message_data_type_e::BIG_ENDIAN_;
   }
+
+  // Create writebatch thread.
+  write_thread_ = std::thread(&LeveldbWrapper::write_thread, this);
 }
 
 LeveldbWrapper::~LeveldbWrapper()
 {
+  // Let writebatch thread exit.
+  {
+    std::unique_lock<std::mutex> lock(m_write_msgs_flag_);
+    write_thread_exit_flag_ = true;
+  }
+
+  cv_write_msgs_flag_.notify_one();
+
+  // Wait for writebatch thread exit.
+  // This may wait for a while if many messages are writting to leveldb database.
+  if (write_thread_.joinable()) {
+    write_thread_.join();
+  }
+
   if (nullptr != read_iter_) {
     delete read_iter_;
   }
@@ -364,20 +382,26 @@ void LeveldbWrapper::write_message(
       message->serialized_data->buffer_length));
 }
 
-void LeveldbWrapper::write_message(
-  const std::vector<std::shared_ptr<const rosbag2_storage::SerializedBagMessage>> & messages)
+void LeveldbWrapper::write_message(const std::shared_ptr<vector_msgs_t> & messages)
 {
-  std::vector<std::pair<leveldb::Slice, leveldb::Slice>> msg_slices;
-  for (auto msg : messages) {
-    msg_slices.emplace_back(
-      leveldb::Slice(
-        reinterpret_cast<const char *>(&msg->time_stamp),
-        sizeof(rcutils_time_point_value_t)),
-      leveldb::Slice(
-        reinterpret_cast<char *>(msg->serialized_data->buffer),
-        msg->serialized_data->buffer_length));
+  {
+    std::unique_lock<std::mutex> lock(m_request_msgs_flag_);
+    if (!request_msgs_flag_) {
+      cv_request_msgs_flag_.wait(
+        lock, [this] {
+          return this->request_msgs_flag_;
+        });
+    }
+    request_msgs_flag_ = false;
   }
-  msg_write(ldb_data_, msg_slices);
+
+  {
+    std::unique_lock<std::mutex> lock(m_write_msgs_flag_);
+    write_msgs_queue_.emplace(messages);
+    write_msgs_flag_ = true;
+  }
+
+  cv_write_msgs_flag_.notify_one();
 }
 
 size_t LeveldbWrapper::get_message_count() const
@@ -432,6 +456,62 @@ rcutils_time_point_value_t LeveldbWrapper::get_timestamp(std::shared_ptr<leveldb
 std::string LeveldbWrapper::get_topic_name() const
 {
   return topic_name_;
+}
+
+void LeveldbWrapper::write_thread()
+{
+  while (!write_thread_exit_flag_) {
+    // If no messages in queue, wait
+    std::shared_ptr<vector_msgs_t> local_ptr;
+    std::size_t queue_size;
+    {
+      std::unique_lock<std::mutex> lock(m_write_msgs_flag_);
+      if (!write_msgs_flag_) {
+        cv_write_msgs_flag_.wait(
+          lock, [this] {
+            return this->write_msgs_flag_ || write_thread_exit_flag_;
+          });
+      }
+
+      if (write_msgs_flag_) {
+        write_msgs_flag_ = false;
+        local_ptr = write_msgs_queue_.front();
+        write_msgs_queue_.pop();
+      } else {
+        local_ptr = nullptr;
+      }
+      queue_size = write_msgs_queue_.size();
+    }
+
+    if (!write_thread_exit_flag_) {
+      {
+        if (queue_size < maximum_queue_size_) {
+          std::unique_lock<std::mutex> lock(m_request_msgs_flag_);
+          request_msgs_flag_ = true;
+        }
+      }
+      cv_request_msgs_flag_.notify_one();
+    }
+
+    if (local_ptr) {
+      // Prepare message slices for leveldb
+      std::vector<std::pair<leveldb::Slice, leveldb::Slice>> msg_slices;
+      for (auto msg : *local_ptr) {
+        msg_slices.emplace_back(
+          leveldb::Slice(
+            reinterpret_cast<const char *>(&msg->time_stamp),
+            sizeof(rcutils_time_point_value_t)),
+          leveldb::Slice(
+            reinterpret_cast<char *>(msg->serialized_data->buffer),
+            msg->serialized_data->buffer_length));
+      }
+      msg_write(ldb_data_, msg_slices);
+    }
+
+    if (write_thread_exit_flag_) {
+      break;
+    }
+  }
 }
 
 }  // namespace rosbag2_storage_plugins
