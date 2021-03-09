@@ -188,15 +188,16 @@ void LeveldbStorage::write(
               "' has not been created yet! Call 'create_topic' first.");
     }
 
-    topic_msg_queue_[msg->topic_name].emplace_back(msg);
+    auto vector_msgs = topic_msg_queue_[msg->topic_name];
+    vector_msgs->emplace_back(msg);
   }
 
   // Send msgs
   for (auto & msg_queue : topic_msg_queue_) {
-    std::cout << msg_queue.first << ":" << msg_queue.second.size() << std::endl;
-    topic_ldb_map_[msg_queue.first]->write_message(msg_queue.second);
-    msg_queue.second.clear();
-    std::cout << msg_queue.first << ":" << topic_msg_queue_[msg_queue.first].size() << std::endl;
+    if (msg_queue.second->size() > 0) {
+      topic_ldb_map_[msg_queue.first]->write_message(msg_queue.second);
+      msg_queue.second = std::make_shared<vector_msgs_t>();
+    }
   }
 }
 
@@ -352,7 +353,7 @@ void LeveldbStorage::create_topic(const rosbag2_storage::TopicMetadata & topic)
     topic_msg_queue_.emplace(
       std::make_pair(
         topic.name,
-        std::vector<std::shared_ptr<const rosbag2_storage::SerializedBagMessage>>()));
+        std::make_shared<vector_msgs_t>()));
   }
 }
 

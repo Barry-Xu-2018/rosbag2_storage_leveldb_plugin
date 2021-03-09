@@ -43,6 +43,7 @@ class ROSBAG2_STORAGE_PLUGINS_PUBLIC LeveldbStorage
   : public rosbag2_storage::storage_interfaces::ReadWriteInterface
 {
 public:
+  using vector_msgs_t = std::vector<std::shared_ptr<const rosbag2_storage::SerializedBagMessage>>;
   LeveldbStorage() = default;
 
   ~LeveldbStorage() override;
@@ -84,8 +85,7 @@ public:
 
 private:
   std::map<std::string, std::shared_ptr<class LeveldbWrapper>> topic_ldb_map_{};
-  std::map<std::string, std::vector<std::shared_ptr<const rosbag2_storage::SerializedBagMessage>>>
-  topic_msg_queue_{};  // For write batch mode
+  std::map<std::string, std::shared_ptr<vector_msgs_t>> topic_msg_queue_{};
   std::vector<rosbag2_storage::TopicMetadata> all_topics_and_types_{};
   std::string relative_path_;
   rosbag2_storage::StorageFilter storage_filter_{};
